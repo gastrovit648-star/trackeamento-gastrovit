@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npx --yes tsx scripts/backup-events-log.ts)",
+      "Bash(npx tsc *)",
+      "Bash(git add *)",
+      "Bash(git push *)"
+    ]
+  }
+}

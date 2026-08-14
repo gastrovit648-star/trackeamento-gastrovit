@@ -1,0 +1,215 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* Light theme — "engineered" sofisticado. Verde neon não funciona em
+       fundo claro (vibra demais), então trocamos por forest green deep.
+       Cyan/amber também descem em saturação pra não cansar a vista. */
+    --background: 60 9% 98%;          /* off-white quase neutro com leve warm */
+    --foreground: 0 0% 8%;            /* near-black, não puro */
+    --card: 0 0% 100%;
+    --card-foreground: 0 0% 8%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 0 0% 8%;
+
+    /* Forest green — sóbrio, mantém identidade visual */
+    --primary: 142 70% 26%;           /* #138142 deep forest */
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 60 5% 94%;
+    --secondary-foreground: 0 0% 10%;
+    --muted: 60 5% 94%;
+    --muted-foreground: 0 0% 38%;
+    --accent: 60 5% 94%;
+    --accent-foreground: 0 0% 10%;
+
+    /* Deep coral pra destrutivo, não red puro */
+    --destructive: 351 70% 45%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 0 0% 90%;
+    --input: 0 0% 90%;
+    --ring: 142 70% 26%;
+    --radius: 0.625rem;
+
+    /* Cyan e amber também menos saturados pra não estourar em fundo claro */
+    --accent-cyan: 187 80% 30%;       /* teal escuro */
+    --accent-amber: 32 95% 38%;       /* burnt orange */
+  }
+
+  .dark {
+    /* "Engineered Telemetry" — dark base com neon green accent + cyan reservado pra destaques */
+    --background: 0 0% 3.5%;        /* #0A0A0A (puro, denso) */
+    --foreground: 0 0% 96%;         /* #F5F5F5 */
+    --card: 0 0% 5.5%;              /* #0F0F0F card slight elevation */
+    --card-foreground: 0 0% 96%;
+    --popover: 0 0% 7%;
+    --popover-foreground: 0 0% 96%;
+
+    /* Primary = neon green (saúde, sucesso, "tá funcionando") */
+    --primary: 142 76% 58%;          /* #4ADE80 */
+    --primary-foreground: 0 0% 5%;
+
+    --secondary: 0 0% 9%;
+    --secondary-foreground: 0 0% 96%;
+    --muted: 0 0% 8%;
+    --muted-foreground: 0 0% 55%;
+    --accent: 0 0% 10%;
+    --accent-foreground: 0 0% 96%;
+
+    /* Destrutivo = coral sofisticado (não red puro) */
+    --destructive: 351 95% 71%;     /* #FB7185 */
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 0 0% 11%;              /* #1C1C1C bordas finíssimas */
+    --input: 0 0% 11%;
+    --ring: 142 76% 58%;
+
+    /* Reservados pra destaques numéricos (ROAS, Lucro) */
+    --accent-cyan: 187 86% 69%;     /* #67E8F9 */
+    --accent-amber: 38 92% 60%;     /* #F59E0B */
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  html {
+    /* Font-feature-settings — habilita tabular numerals e ligaturas tech */
+    font-feature-settings: "ss01", "ss02", "cv11", "calt", "tnum";
+  }
+
+  body {
+    @apply bg-background text-foreground;
+    background-attachment: fixed;
+  }
+
+  /* Atmosfera dark — noise denso + gradient mesh verde forte no topo */
+  .dark body {
+    background-image:
+      radial-gradient(ellipse 80% 60% at 50% -10%, hsl(var(--primary) / 0.06), transparent 60%),
+      url("data:image/svg+xml;utf8,<svg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 0.06 0'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>");
+  }
+
+  /* Atmosfera light — paper grain sutil + 2 mesh radiais (warm + cool)
+     pra criar profundidade sem cansar a vista. Tons baixos demais pra
+     "vibrar", mas suficientes pra tirar a planura. */
+  html:not(.dark) body {
+    background-image:
+      radial-gradient(ellipse 70% 50% at 20% -10%, hsl(var(--primary) / 0.07), transparent 55%),
+      radial-gradient(ellipse 50% 45% at 100% 100%, hsl(var(--accent-cyan) / 0.06), transparent 55%),
+      url("data:image/svg+xml;utf8,<svg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'><filter id='p'><feTurbulence type='fractalNoise' baseFrequency='0.6' numOctaves='3' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0.1  0 0 0 0 0.1  0 0 0 0 0.1  0 0 0 0.035 0'/></filter><rect width='100%25' height='100%25' filter='url(%23p)'/></svg>");
+  }
+
+  /* Mono utility (já mapeada via tailwind variable) */
+  .font-mono {
+    font-feature-settings: "tnum", "calt", "ss01";
+  }
+
+  /* Tabular nums em qualquer número grande */
+  .tabular {
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+@layer components {
+  /* ── Cards ─────────────────────────────────────────────────────────────
+     Light: paper-card com 3 layers de shadow (close + mid + far) +
+            highlight branco no topo, criando sensação de profundidade.
+     Dark:  glass translúcido com blur e ring de escuridão.
+  */
+  .glass-card {
+    @apply bg-card border border-border/80;
+    box-shadow:
+      0 0 0 1px hsl(0 0% 100% / 0.8) inset,
+      0 1px 2px -1px hsl(240 6% 10% / 0.08),
+      0 4px 12px -4px hsl(240 6% 10% / 0.06),
+      0 16px 32px -16px hsl(240 6% 10% / 0.08);
+  }
+  .dark .glass-card {
+    @apply bg-card/60 backdrop-blur-xl border-border/80;
+    box-shadow:
+      0 1px 0 0 hsl(0 0% 100% / 0.04) inset,
+      0 0 0 1px hsl(0 0% 0% / 0.4);
+  }
+
+  /* ── Destaque accent (Lucro positivo) ──────────────────────────────────
+     Light: tint primary no fundo do shadow + border accent. Dark: glow.
+  */
+  .glass-card-accent {
+    @apply bg-card border;
+    border-color: hsl(var(--primary) / 0.45);
+    box-shadow:
+      0 0 0 1px hsl(0 0% 100% / 0.8) inset,
+      0 1px 2px -1px hsl(var(--primary) / 0.15),
+      0 6px 18px -6px hsl(var(--primary) / 0.18),
+      0 20px 40px -20px hsl(var(--primary) / 0.25);
+  }
+  .dark .glass-card-accent {
+    @apply bg-card/60 backdrop-blur-xl border;
+    border-color: hsl(var(--primary) / 0.25);
+    box-shadow:
+      0 1px 0 0 hsl(0 0% 100% / 0.04) inset,
+      0 0 0 1px hsl(var(--primary) / 0.1),
+      0 0 40px -10px hsl(var(--primary) / 0.25);
+  }
+
+  /* ── Destaque cyan (ROAS) ──────────────────────────────────────────────
+     Light: tint teal escuro no shadow.
+  */
+  .glass-card-cyan {
+    @apply bg-card border;
+    border-color: hsl(var(--accent-cyan) / 0.5);
+    box-shadow:
+      0 0 0 1px hsl(0 0% 100% / 0.8) inset,
+      0 1px 2px -1px hsl(var(--accent-cyan) / 0.15),
+      0 6px 18px -6px hsl(var(--accent-cyan) / 0.2),
+      0 20px 40px -20px hsl(var(--accent-cyan) / 0.25);
+  }
+  .dark .glass-card-cyan {
+    @apply bg-card/60 backdrop-blur-xl border;
+    border-color: hsl(var(--accent-cyan) / 0.25);
+    box-shadow:
+      0 1px 0 0 hsl(0 0% 100% / 0.04) inset,
+      0 0 0 1px hsl(var(--accent-cyan) / 0.1),
+      0 0 40px -10px hsl(var(--accent-cyan) / 0.25);
+  }
+
+  /* Linhas guia em headers de tabela e grids */
+  .grid-line {
+    background-image: linear-gradient(90deg, transparent, hsl(var(--border)) 50%, transparent);
+  }
+}
+
+/* ─── Animations ────────────────────────────────────────────────────────── */
+
+@keyframes nav-progress {
+  0%   { transform: translateX(-100%); }
+  50%  { transform: translateX(150%); }
+  100% { transform: translateX(350%); }
+}
+
+/* Page load — fade-in com sutil translate-up. Aplicado via animation-delay
+   stagger nos cards via inline style. */
+@keyframes reveal-up {
+  0%   { opacity: 0; transform: translateY(8px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+
+.reveal-up {
+  animation: reveal-up 500ms cubic-bezier(0.16, 1, 0.3, 1) backwards;
+}
+
+/* Pulse soft pra indicador de "live" / "atualizado" */
+@keyframes pulse-dot {
+  0%, 100% { opacity: 1; box-shadow: 0 0 0 0 hsl(var(--primary) / 0.5); }
+  50%      { opacity: 0.7; box-shadow: 0 0 0 6px hsl(var(--primary) / 0); }
+}
+
+.pulse-dot {
+  animation: pulse-dot 2s ease-in-out infinite;
+}
