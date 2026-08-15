@@ -1303,7 +1303,7 @@ function SecretEditor({
   onSaved,
 }: {
   label: string;
-  secretKey: "datacrazy" | "payt" | "skale";
+  secretKey: "datacrazy" | "payt" | "skale" | "braip";
   secret: WebhookSecrets["datacrazy"];
   onSaved: (s: WebhookSecrets) => void;
 }) {
@@ -1382,6 +1382,9 @@ function WebhooksPanel({ baseUrl, initialSecrets }: { baseUrl: string; initialSe
   const leadsUrl = `${baseUrl}/api/webhook/datacrazy`;
   const salesUrl = `${baseUrl}/api/webhook/payt?token=${secrets.payt.value ?? "SEU_PAYT_WEBHOOK_SECRET"}`;
   const skaleUrl = `${baseUrl}/api/webhook/skale?token=${secrets.skale.value ?? "SEU_SKALE_WEBHOOK_SECRET"}`;
+  // Braip autentica pelo basic_authentication NO CORPO do postback (não query/header),
+  // então a URL é só o endpoint — o secret é a chave que a Braip envia em cada postback.
+  const braipUrl = `${baseUrl}/api/webhook/braip`;
 
   const leadsPayload = `{
   "phone": "5511999998888",
@@ -1422,6 +1425,24 @@ function WebhooksPanel({ baseUrl, initialSecrets }: { baseUrl: string; initialSe
     "total_price": 69900, "paid_at": null
   },
   "skaletracking": { "event": "order_created" }
+}`;
+
+  const salesPayloadBraip = `{
+  "basic_authentication": "SEU_SECRET_DA_BRAIP",
+  "type": "STATUS_ALTERADO",
+  "trans_key": "venrw415k",
+  "trans_status_code": "11",
+  "trans_status": "Agendado",
+  "trans_payment": "6",
+  "trans_pay_on_delivery": 1,
+  "trans_value": "69900",
+  "product_name": "Kit Exemplo",
+  "client_name": "Maria Silva",
+  "client_email": "cliente@email.com",
+  "client_cel": "11999999999",
+  "client_address_city": "São Paulo",
+  "client_address_state": "SP",
+  "client_zip_code": "01001000"
 }`;
 
   return (
@@ -1575,6 +1596,56 @@ function WebhooksPanel({ baseUrl, initialSecrets }: { baseUrl: string; initialSe
             </div>
             <pre className="rounded-md border border-input bg-muted/40 p-3 text-xs font-mono overflow-x-auto">
               {salesPayloadSkale}
+            </pre>
+          </div>
+        </section>
+
+        {/* ── Webhook da Braip (venda + pagamento na entrega) ──────────────── */}
+        <section className="space-y-3">
+          <div className="flex items-center gap-2">
+            <h3 className="text-sm font-semibold">Webhook da Braip</h3>
+            <Badge variant="outline">POST</Badge>
+          </div>
+          <WebhookUrl url={braipUrl} />
+          <div className="text-xs text-muted-foreground space-y-1">
+            <p>
+              <strong>Autenticação:</strong> a Braip manda o campo{" "}
+              <code className="font-mono">basic_authentication</code> <strong>no corpo</strong> de
+              cada postback — cole aqui embaixo a mesma chave que aparece na configuração do
+              postback na Braip. (A URL não leva <code className="font-mono">?token=</code>.)
+            </p>
+            <p>
+              <strong>Agendamento:</strong> venda com{" "}
+              <code className="font-mono">trans_pay_on_delivery: 1</code> /{" "}
+              <code className="font-mono">trans_cash_on_delivery: true</code> ou status{" "}
+              <code className="font-mono">Agendado</code> entra como <strong>agendamento</strong>{" "}
+              (coluna AGENDAMENTO), atribuído por telefone, sem Purchase no Meta. Quando o
+              pagamento confirmar (<code className="font-mono">Pagamento Aprovado</code>), vira
+              venda e dispara o Purchase.
+            </p>
+          </div>
+          <SecretEditor
+            label="Secret da Braip (campo basic_authentication do postback)"
+            secretKey="braip"
+            secret={secrets.braip}
+            onSaved={setSecrets}
+          />
+          <div className="rounded-md border border-input bg-muted/40 p-3 text-xs space-y-2">
+            <p className="font-medium">Como a Braip é lida:</p>
+            <ul className="space-y-1 list-disc pl-5 text-muted-foreground">
+              <li>Transação: <code className="font-mono">trans_key</code>; status: <code className="font-mono">trans_status_code</code> (2 = pago, 11 = agendado, 3/4/5 = cancelado/estorno).</li>
+              <li><strong>Valor:</strong> comissão do produtor (senão <code className="font-mono">trans_value</code>), em centavos.</li>
+              <li><strong>Telefone:</strong> <code className="font-mono">client_cel</code> (o DDI 55 é adicionado automaticamente).</li>
+              <li>Postbacks <code className="font-mono">STATUS_ALTERADO</code>, <code className="font-mono">BOLETO_ALTERADO</code> e <code className="font-mono">DELIVERY_RESCHEDULED</code>.</li>
+            </ul>
+          </div>
+          <div>
+            <div className="flex items-center justify-between mb-1">
+              <span className="text-xs font-medium">Payload de exemplo (agendamento)</span>
+              <CopyButton value={salesPayloadBraip} />
+            </div>
+            <pre className="rounded-md border border-input bg-muted/40 p-3 text-xs font-mono overflow-x-auto">
+              {salesPayloadBraip}
             </pre>
           </div>
         </section>

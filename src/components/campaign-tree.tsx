@@ -42,8 +42,9 @@ const COLUMNS = [
   { key: "revenue",      min: 95,  def: 115 },
   { key: "lucro",        min: 80,  def: 110 },
   { key: "roas",           min: 60,  def: 80  },
-  { key: "agendamentos",   min: 95,  def: 110 },
-  { key: "cpaAgendamento", min: 90,  def: 105 },
+  { key: "agendamentos",    min: 95,  def: 110 },
+  { key: "roasAgendamento", min: 80,  def: 95  },
+  { key: "cpaAgendamento",  min: 90,  def: 105 },
   { key: "leads",          min: 70,  def: 85  },
   { key: "cpl",          min: 70,  def: 85  },
   { key: "boletos",      min: 70,  def: 85  },
@@ -206,7 +207,7 @@ function matchStatus(status: string | null | undefined, f: StatusFilter): boolea
 
 type SortKey =
   | "spend" | "leads" | "cpl" | "purchases" | "cpa"
-  | "boletos" | "pixGerados" | "recusados" | "agendamentos" | "cpaAgendamento"
+  | "boletos" | "pixGerados" | "recusados" | "agendamentos" | "roasAgendamento" | "cpaAgendamento"
   | "revenue" | "lucro" | "roas";
 
 type SortState = { key: SortKey; dir: "desc" | "asc" };
@@ -221,6 +222,7 @@ const SORT_LABELS: Record<SortKey, string> = {
   pixGerados: "PIX gerados",
   recusados: "Recusados",
   agendamentos: "Agendamentos",
+  roasAgendamento: "ROAS Agendamento",
   cpaAgendamento: "CPA Agendamento",
   revenue: "Faturamento",
   lucro: "Lucro",
@@ -229,7 +231,7 @@ const SORT_LABELS: Record<SortKey, string> = {
 
 // Métricas de razão: 0 significa "sem dado" (—), então vai pro fim da lista
 // independente da direção — senão "menor CPA" viraria uma lista de zeros.
-const RATIO_KEYS: SortKey[] = ["cpl", "cpa", "roas", "cpaAgendamento"];
+const RATIO_KEYS: SortKey[] = ["cpl", "cpa", "roas", "cpaAgendamento", "roasAgendamento"];
 
 function makeComparator({ key, dir }: SortState) {
   const missing = (v: number) => RATIO_KEYS.includes(key) && v <= 0;
@@ -644,6 +646,14 @@ function MetricsRow({
       <div className="text-center whitespace-nowrap">
         <span className={`text-xs font-mono tabular font-semibold ${row.agendamentos > 0 ? "text-[hsl(var(--accent-amber))]" : "text-muted-foreground/60"}`}>
           {row.agendamentos > 0 ? row.agendamentos.toLocaleString("pt-BR") : "—"}
+        </span>
+      </div>
+      <div className="text-center whitespace-nowrap">
+        <span className={`text-xs font-mono tabular font-semibold ${
+          row.roasAgendamento >= 1 ? "text-[hsl(var(--accent-amber))]" :
+          row.roasAgendamento > 0  ? "text-muted-foreground" :
+                                     "text-muted-foreground/60"}`}>
+          {row.roasAgendamento > 0 ? `${row.roasAgendamento.toFixed(2)}×` : "—"}
         </span>
       </div>
       <MetricCell value={row.cpaAgendamento > 0 ? formatCurrency(row.cpaAgendamento) : "—"} />
@@ -1083,11 +1093,11 @@ export function CampaignTree({ campaigns, initialCreative, initialCreativeId, cl
 
   // Totais do nível atual (soma das linhas visíveis daquele nível).
   const totals = useMemo(() => {
-    const t = { spend: 0, leads: 0, purchases: 0, boletos: 0, pixGerados: 0, recusados: 0, agendamentos: 0, revenue: 0, lucro: 0 };
+    const t = { spend: 0, leads: 0, purchases: 0, boletos: 0, pixGerados: 0, recusados: 0, agendamentos: 0, agendamentosValue: 0, revenue: 0, lucro: 0 };
     for (const c of rows) {
       t.spend += c.spend; t.leads += c.leads; t.purchases += c.purchases;
       t.boletos += c.boletos; t.pixGerados += c.pixGerados; t.recusados += c.recusados;
-      t.agendamentos += c.agendamentos;
+      t.agendamentos += c.agendamentos; t.agendamentosValue += c.agendamentosValue;
       t.revenue += c.revenue; t.lucro += c.lucro;
     }
     return t;
@@ -1295,24 +1305,27 @@ export function CampaignTree({ campaigns, initialCreative, initialCreativeId, cl
                 <HeadCell parts={[{ key: "agendamentos", label: "Agendamento" }]} sort={sort} onSort={toggleSort} />
               </HeadShell>
               <HeadShell index={10} {...head}>
-                <HeadCell parts={[{ key: "cpaAgendamento", label: "CPA Agend." }]} sort={sort} onSort={toggleSort} />
+                <HeadCell parts={[{ key: "roasAgendamento", label: "ROAS Agend." }]} sort={sort} onSort={toggleSort} />
               </HeadShell>
               <HeadShell index={11} {...head}>
-                <HeadCell parts={[{ key: "leads", label: "Leads" }]} sort={sort} onSort={toggleSort} />
+                <HeadCell parts={[{ key: "cpaAgendamento", label: "CPA Agend." }]} sort={sort} onSort={toggleSort} />
               </HeadShell>
               <HeadShell index={12} {...head}>
-                <HeadCell parts={[{ key: "cpl", label: "CPL" }]} sort={sort} onSort={toggleSort} />
+                <HeadCell parts={[{ key: "leads", label: "Leads" }]} sort={sort} onSort={toggleSort} />
               </HeadShell>
               <HeadShell index={13} {...head}>
-                <HeadCell parts={[{ key: "boletos", label: "Boletos" }]} sort={sort} onSort={toggleSort} />
+                <HeadCell parts={[{ key: "cpl", label: "CPL" }]} sort={sort} onSort={toggleSort} />
               </HeadShell>
               <HeadShell index={14} {...head}>
-                <HeadCell parts={[{ key: "pixGerados", label: "PIX Ger" }]} sort={sort} onSort={toggleSort} />
+                <HeadCell parts={[{ key: "boletos", label: "Boletos" }]} sort={sort} onSort={toggleSort} />
               </HeadShell>
               <HeadShell index={15} {...head}>
+                <HeadCell parts={[{ key: "pixGerados", label: "PIX Ger" }]} sort={sort} onSort={toggleSort} />
+              </HeadShell>
+              <HeadShell index={16} {...head}>
                 <HeadCell parts={[{ key: "recusados", label: "Recusados" }]} sort={sort} onSort={toggleSort} />
               </HeadShell>
-              <HeadShell index={16} {...head} last>
+              <HeadShell index={17} {...head} last>
                 <span className="block text-[11px] font-mono font-semibold uppercase tracking-[0.08em] text-muted-foreground whitespace-nowrap">
                   Conta
                 </span>
@@ -1383,6 +1396,7 @@ export function CampaignTree({ campaigns, initialCreative, initialCreativeId, cl
 type Totals = {
   spend: number; leads: number; purchases: number;
   boletos: number; pixGerados: number; recusados: number; agendamentos: number;
+  agendamentosValue: number;
   revenue: number; lucro: number;
 };
 
@@ -1401,6 +1415,7 @@ function TotalsRow({ totals, count, noun = "campanha" }: { totals: Totals; count
   const cpa  = totals.purchases > 0 ? totals.spend / totals.purchases : 0;
   const roas = totals.spend > 0     ? totals.revenue / totals.spend   : 0;
   const cpaAgend = totals.agendamentos > 0 ? totals.spend / totals.agendamentos : 0;
+  const roasAgend = totals.spend > 0 ? totals.agendamentosValue / totals.spend : 0;
   const lucroColor =
     totals.lucro > 0 ? "text-primary" :
     totals.lucro < 0 ? "text-destructive" :
@@ -1433,6 +1448,10 @@ function TotalsRow({ totals, count, noun = "campanha" }: { totals: Totals; count
       <TotalCell
         value={totals.agendamentos > 0 ? totals.agendamentos.toLocaleString("pt-BR") : "—"}
         tone={totals.agendamentos > 0 ? "text-[hsl(var(--accent-amber))]" : "text-muted-foreground/60"}
+      />
+      <TotalCell
+        value={roasAgend > 0 ? `${roasAgend.toFixed(2)}×` : "—"}
+        tone={roasAgend >= 1 ? "text-[hsl(var(--accent-amber))]" : roasAgend > 0 ? "text-muted-foreground" : "text-muted-foreground/60"}
       />
       <TotalCell value={cpaAgend > 0 ? formatCurrency(cpaAgend) : "—"} />
       <TotalCell value={totals.leads > 0 ? totals.leads.toLocaleString("pt-BR") : "—"} />

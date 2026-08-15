@@ -220,7 +220,7 @@ export interface PlatformRevenueBreakdown {
 }
 
 export type RevenueByPlatformMethod = Record<
-  "payt" | "luminar-pay" | "manual" | "skale",
+  "payt" | "luminar-pay" | "manual" | "skale" | "braip",
   PlatformRevenueBreakdown
 >;
 
@@ -230,7 +230,7 @@ export interface TransactionStat {
 }
 
 type BreakdownRow = {
-  source: "payt" | "manual" | "luminar-pay" | "skale" | null;
+  source: "payt" | "manual" | "luminar-pay" | "skale" | "braip" | null;
   payment_method: string | null;
   value: number;
   commission_value: number | null;
@@ -247,10 +247,11 @@ function aggregateRevenueByPlatformMethod(rows: BreakdownRow[]): RevenueByPlatfo
     "luminar-pay": emptyBreakdown(),
     manual: emptyBreakdown(),
     skale: emptyBreakdown(),
+    braip: emptyBreakdown(),
   };
   for (const p of rows) {
     const platform =
-      p.source === "manual" || p.source === "luminar-pay" || p.source === "skale" ? p.source : "payt";
+      p.source === "manual" || p.source === "luminar-pay" || p.source === "skale" || p.source === "braip" ? p.source : "payt";
     const method =
       p.payment_method === "credit_card" || p.payment_method === "boleto" || p.payment_method === "pix"
         ? p.payment_method
@@ -281,7 +282,7 @@ export function buildRevenueBreakdownLines(b: RevenueByPlatformMethod): RevenueB
     ["other", "outros"],
   ] as const;
   const lines: RevenueBreakdownLine[] = [];
-  ([["luminar-pay", "Luminar"], ["payt", "Payt"], ["skale", "Skale"]] as const).forEach(([key, name]) => {
+  ([["luminar-pay", "Luminar"], ["payt", "Payt"], ["skale", "Skale"], ["braip", "Braip"]] as const).forEach(([key, name]) => {
     const p = b[key];
     if (p.total <= 0) return;
     for (const [mKey, mLabel] of METHOD_LABELS) {
@@ -329,7 +330,7 @@ export async function getOverviewMetrics(
     commission_value: number | null;
     status: string;
     matched_lead: boolean;
-    source: "payt" | "manual" | "luminar-pay" | "skale" | null;
+    source: "payt" | "manual" | "luminar-pay" | "skale" | "braip" | null;
     payment_method: string | null;
     created_at: string;
     approved_at: string | null;
@@ -597,7 +598,9 @@ export interface CampaignNode {
   pixGerados: number;   // PIX gerados (qualquer status)
   recusados: number;    // cartões recusados (status refused)
   agendamentos: number; // pedidos Pay-After-Delivery (por scheduled_at, migration 018)
+  agendamentosValue: number; // faturamento agendado (comprometido) — soma p/ totais
   cpaAgendamento: number; // gasto ÷ agendamentos (0 = sem agendamento)
+  roasAgendamento: number; // faturamento agendado ÷ gasto (0 = sem gasto)
   // Nome da conta de anúncio dona da campanha (ad_accounts.name). É uma
   // propriedade do nível campaign: conjunto e anúncio herdam o valor do pai.
   // null quando a campanha é phantom e o ad_account_id do lead/venda não
@@ -779,7 +782,7 @@ export async function getCampaignHierarchy(
     ad_name: string | null;
     value: number;
     commission_value: number | null;
-    source: "payt" | "manual" | "luminar-pay" | "skale" | null;
+    source: "payt" | "manual" | "luminar-pay" | "skale" | "braip" | null;
     status: string;
     payment_method: string | null;
     created_at: string;
@@ -857,13 +860,15 @@ export async function getCampaignHierarchy(
   // agendamentos = pedidos Pay-After-Delivery. Contam por scheduled_at (carimbo
   // persistente da migration 018): um pedido agendado no período conta aqui
   // mesmo que seja pago DEPOIS e vire 'approved' — o scheduled_at não some.
-  type Extra = { boletos: number; pixGerados: number; recusados: number; agendamentos: number };
+  // agendamentosValue = faturamento agendado (comprometido) do nó, pro ROAS de
+  // agendamento (= agendamentosValue ÷ gasto). Os outros campos são contagens.
+  type Extra = { boletos: number; pixGerados: number; recusados: number; agendamentos: number; agendamentosValue: number };
   const extraByCamp  = new Map<string, Extra>();
   const extraByAdset = new Map<string, Extra>();
   const extraByAd    = new Map<string, Extra>();
-  const bumpExtra = (m: Map<string, Extra>, k: string, field: keyof Extra) => {
-    const cur = m.get(k) ?? { boletos: 0, pixGerados: 0, recusados: 0, agendamentos: 0 };
-    cur[field] += 1;
+  const bumpExtra = (m: Map<string, Extra>, k: string, field: keyof Extra, amount = 1) => {
+    const cur = m.get(k) ?? { boletos: 0, pixGerados: 0, recusados: 0, agendamentos: 0, agendamentosValue: 0 };
+    cur[field] += amount;
     m.set(k, cur);
   };
   for (const p of createdInRange) {
@@ -873,11 +878,19 @@ export async function getCampaignHierarchy(
     if (p.status === "refused")        fields.push("recusados");
     // Agendamento cancelado/estornado não conta (cancela-e-refaz duplicava —
     // scheduled_at persiste mesmo virando refused/refunded).
-    if (p.scheduled_at && p.status !== "refused" && p.status !== "refunded") fields.push("agendamentos");
+    const isAgend = !!p.scheduled_at && p.status !== "refused" && p.status !== "refunded";
+    if (isAgend) fields.push("agendamentos");
     for (const f of fields) {
       if (p.campaign_id) bumpExtra(extraByCamp,  p.campaign_id, f);
       if (p.adset_id)    bumpExtra(extraByAdset, p.adset_id,    f);
       if (p.ad_id)       bumpExtra(extraByAd,    p.ad_id,       f);
+    }
+    // Faturamento agendado por nó (pro ROAS de agendamento).
+    if (isAgend) {
+      const v = Number(p.commission_value ?? p.value);
+      if (p.campaign_id) bumpExtra(extraByCamp,  p.campaign_id, "agendamentosValue", v);
+      if (p.adset_id)    bumpExtra(extraByAdset, p.adset_id,    "agendamentosValue", v);
+      if (p.ad_id)       bumpExtra(extraByAd,    p.ad_id,       "agendamentosValue", v);
     }
   }
 
@@ -1104,7 +1117,9 @@ export async function getCampaignHierarchy(
       pixGerados:   extra?.pixGerados   ?? 0,
       recusados:    extra?.recusados    ?? 0,
       agendamentos: extra?.agendamentos ?? 0,
+      agendamentosValue: extra?.agendamentosValue ?? 0,
       cpaAgendamento: (extra?.agendamentos ?? 0) > 0 ? spend / (extra!.agendamentos) : 0,
+      roasAgendamento: spend > 0 ? (extra?.agendamentosValue ?? 0) / spend : 0,
     };
   };
 
@@ -1495,7 +1510,7 @@ export interface PurchasesListFilters {
   projectAccountIds?: string[] | null;  // escopo por projeto (migration 020)
   affiliateEmail?: string | null;
   producerOnly?: boolean;   // só vendas do produtor (affiliate_email IS NULL)
-  source?: "payt" | "manual" | "luminar-pay" | "skale" | null;  // origem: Payt, Luminar-pay, Skale ou lançamento manual
+  source?: "payt" | "manual" | "luminar-pay" | "skale" | "braip" | null;  // origem: Payt, Luminar-pay, Skale ou lançamento manual
   search?: string | null;   // busca parcial por phone OU email
   page?: number;
   pageSize?: number;

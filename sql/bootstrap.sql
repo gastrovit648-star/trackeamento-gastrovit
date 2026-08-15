@@ -994,3 +994,11 @@ CREATE INDEX IF NOT EXISTS attendants_project_ids_idx  ON public.attendants  USI
 UPDATE public.ad_accounts SET project_ids = ARRAY[project_id] WHERE project_id IS NOT NULL AND cardinality(project_ids) = 0;
 UPDATE public.pixels      SET project_ids = ARRAY[project_id] WHERE project_id IS NOT NULL AND cardinality(project_ids) = 0;
 UPDATE public.attendants  SET project_ids = ARRAY[project_id] WHERE project_id IS NOT NULL AND cardinality(project_ids) = 0;
+
+-- ════════════════════════════════════════════════════════════════════════════
+-- Migration 022 — source 'braip' (webhook /api/webhook/braip)
+-- ════════════════════════════════════════════════════════════════════════════
+ALTER TABLE public.purchases DROP CONSTRAINT IF EXISTS purchases_source_check;
+ALTER TABLE public.purchases
+  ADD CONSTRAINT purchases_source_check
+  CHECK (source IN ('payt', 'manual', 'luminar-pay', 'skale', 'braip'));

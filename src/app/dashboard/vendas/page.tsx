@@ -47,7 +47,7 @@ export default async function VendasPage({
   // E-mails reais sempre contêm '@', então não há colisão.
   const producerOnly = searchParams.affiliate === "producer";
   const affiliate = producerOnly ? null : (searchParams.affiliate || null);
-  const source = (searchParams.source === "payt" || searchParams.source === "manual" || searchParams.source === "luminar-pay" || searchParams.source === "skale")
+  const source = (searchParams.source === "payt" || searchParams.source === "manual" || searchParams.source === "luminar-pay" || searchParams.source === "skale" || searchParams.source === "braip")
     ? searchParams.source : null;
   const search = searchParams.q || null;
   const page = searchParams.page ? Math.max(0, parseInt(searchParams.page) - 1) : 0;
@@ -116,6 +116,12 @@ export default async function VendasPage({
           className={`px-3 py-1 rounded border text-xs ${source === "skale" ? "bg-accent" : "hover:bg-accent"}`}
         >
           Skale
+        </a>
+        <a
+          href={mkHref(searchParams, 0, { set: { source: "braip" } })}
+          className={`px-3 py-1 rounded border text-xs ${source === "braip" ? "bg-accent" : "hover:bg-accent"}`}
+        >
+          Braip
         </a>
         <a
           href={mkHref(searchParams, 0, { set: { source: "manual" } })}
@@ -261,7 +267,7 @@ export default async function VendasPage({
                   status: string;
                   affiliate_email: string | null;
                   matched_lead: boolean;
-                  source: "payt" | "manual" | "luminar-pay" | "skale" | null;
+                  source: "payt" | "manual" | "luminar-pay" | "skale" | "braip" | null;
                   source_url: string | null;
                   campaign_id: string | null;
                   campaign_name: string | null;
@@ -296,7 +302,9 @@ export default async function VendasPage({
                           ? <Badge variant="outline" className="border-[hsl(var(--accent)/0.5)]">Luminar-pay</Badge>
                           : row.source === "skale"
                             ? <Badge variant="outline" className="border-[hsl(var(--accent-cyan)/0.5)] text-[hsl(var(--accent-cyan))]">Skale</Badge>
-                            : <span className="text-muted-foreground text-xs">Payt</span>}
+                            : row.source === "braip"
+                              ? <Badge variant="outline" className="border-[hsl(var(--primary)/0.5)] text-[hsl(var(--primary))]">Braip</Badge>
+                              : <span className="text-muted-foreground text-xs">Payt</span>}
                     </TableCell>
                     <TableCell className="text-xs">{row.affiliate_email || <Badge variant="outline">Produtor</Badge>}</TableCell>
                     <TableCell>

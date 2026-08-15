@@ -29,7 +29,7 @@ export async function PUT(request: NextRequest) {
   const body = await request.json();
   const patch: Record<string, string> = {};
 
-  for (const key of ["datacrazy", "payt", "skale"] as const) {
+  for (const key of ["datacrazy", "payt", "skale", "braip"] as const) {
     if (body[key] === undefined) continue;
     const value = typeof body[key] === "string" ? body[key].trim() : "";
     if (!SECRET_PATTERN.test(value)) {

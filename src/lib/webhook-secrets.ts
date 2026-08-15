@@ -26,6 +26,7 @@ export interface WebhookSecrets {
   datacrazy: WebhookSecret;
   payt: WebhookSecret;
   skale: WebhookSecret;
+  braip: WebhookSecret;
 }
 
 function resolve(dbValue: unknown, envValue: string | undefined): WebhookSecret {
@@ -39,7 +40,7 @@ function resolve(dbValue: unknown, envValue: string | undefined): WebhookSecret 
 }
 
 export async function getWebhookSecrets(): Promise<WebhookSecrets> {
-  let db: { datacrazy?: unknown; payt?: unknown; skale?: unknown } = {};
+  let db: { datacrazy?: unknown; payt?: unknown; skale?: unknown; braip?: unknown } = {};
   try {
     const supabase = createAdminClient();
     const { data } = await supabase
@@ -48,7 +49,7 @@ export async function getWebhookSecrets(): Promise<WebhookSecrets> {
       .eq("key", SETTINGS_KEY)
       .maybeSingle();
     if (data?.value && typeof data.value === "object") {
-      db = data.value as { datacrazy?: unknown; payt?: unknown; skale?: unknown };
+      db = data.value as { datacrazy?: unknown; payt?: unknown; skale?: unknown; braip?: unknown };
     }
   } catch (err) {
     console.error("[webhook-secrets] leitura falhou, usando env:", err);
@@ -57,5 +58,6 @@ export async function getWebhookSecrets(): Promise<WebhookSecrets> {
     datacrazy: resolve(db.datacrazy, process.env.DATACRAZY_WEBHOOK_SECRET),
     payt: resolve(db.payt, process.env.PAYT_WEBHOOK_SECRET),
     skale: resolve(db.skale, process.env.SKALE_WEBHOOK_SECRET),
+    braip: resolve(db.braip, process.env.BRAIP_WEBHOOK_SECRET),
   };
 }
