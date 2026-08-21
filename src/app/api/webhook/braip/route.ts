@@ -169,6 +169,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
     }
 
+    // ?project=<id> → roteia o Purchase só pros pixels desse projeto (Fase 2).
+    const projectId = request.nextUrl.searchParams.get("project");
+
     const parsed = parseBraip(body);
 
     if (!parsed.transaction_id) {
@@ -296,7 +299,7 @@ export async function POST(request: NextRequest) {
           productId: parsed.productId,
           ctwaClid: lead?.ctwa_clid ?? null,
           eventSourceUrl,
-        }, "schedule");
+        }, "schedule", projectId);
         await supabase
           .from("purchases")
           .update({
@@ -343,7 +346,7 @@ export async function POST(request: NextRequest) {
       productId: parsed.productId,
       ctwaClid: lead?.ctwa_clid ?? null,
       eventSourceUrl,
-    }, "sale");
+    }, "sale", projectId);
 
     const { error: purchaseError } = await supabase.from("purchases").upsert(
       {

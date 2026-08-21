@@ -46,6 +46,7 @@ export interface OrderCAPIResult {
 export async function sendOrderPurchaseCAPI(
   o: OrderCAPIInput,
   trigger: "sale" | "schedule",
+  projectId?: string | null,
 ): Promise<OrderCAPIResult> {
   const supabase = createAdminClient();
 
@@ -55,11 +56,16 @@ export async function sendOrderPurchaseCAPI(
   // ('off' nunca recebe.) O event_id é o mesmo pros dois, então um pixel 'both'
   // que recebe agendamento E venda o Meta dedupa (conta uma vez).
   const modes = trigger === "sale" ? ["sale", "both"] : ["schedule", "both"];
-  const { data: pixelsRows } = await supabase
+  let pixelsQuery = supabase
     .from("pixels")
     .select("pixel_id, access_token")
     .eq("is_active", true)
     .in("capi_mode", modes);
+  // Roteamento por projeto (multi-projeto Fase 2): com ?project=<id> na URL do
+  // webhook, o Purchase vai SÓ pros pixels daquele projeto (project_ids contém
+  // o id). Sem projeto → fan-out pra todos os pixels (comportamento legado).
+  if (projectId) pixelsQuery = pixelsQuery.contains("project_ids", [projectId]);
+  const { data: pixelsRows } = await pixelsQuery;
   const activePixels = (pixelsRows ?? []) as Array<{ pixel_id: string; access_token: string }>;
 
   const phoneHash     = o.phone ? await sha256(o.phone) : null;

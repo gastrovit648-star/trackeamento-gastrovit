@@ -101,7 +101,7 @@ export function SettingsTabs({ initialAdAccounts, initialAttendants, initialPixe
         <UsdRatePanel initial={initialUsdRate} />
       </TabsContent>
       <TabsContent value="webhooks">
-        <WebhooksPanel baseUrl={baseUrl} initialSecrets={initialWebhookSecrets} />
+        <WebhooksPanel baseUrl={baseUrl} initialSecrets={initialWebhookSecrets} projects={initialProjects} />
       </TabsContent>
     </Tabs>
   );
@@ -1376,7 +1376,7 @@ function SecretEditor({
   );
 }
 
-function WebhooksPanel({ baseUrl, initialSecrets }: { baseUrl: string; initialSecrets: WebhookSecrets }) {
+function WebhooksPanel({ baseUrl, initialSecrets, projects }: { baseUrl: string; initialSecrets: WebhookSecrets; projects: Project[] }) {
   const [secrets, setSecrets] = useState<WebhookSecrets>(initialSecrets);
 
   const leadsUrl = `${baseUrl}/api/webhook/datacrazy`;
@@ -1649,6 +1649,34 @@ function WebhooksPanel({ baseUrl, initialSecrets }: { baseUrl: string; initialSe
             </pre>
           </div>
         </section>
+
+        {/* ── Roteamento por projeto (CAPI) ────────────────────────────────── */}
+        {projects.length > 0 && (
+          <section className="space-y-3">
+            <div className="flex items-center gap-2">
+              <h3 className="text-sm font-semibold">Roteamento por projeto (CAPI)</h3>
+              <Badge variant="outline">multi-projeto</Badge>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Por padrão o Purchase vai pra <strong>todos</strong> os pixels ativos. Pra
+              mandar o evento <strong>só pro pixel de um projeto</strong>, use a URL do
+              projeto abaixo no postback daquele gateway — o{" "}
+              <code className="font-mono">?project=</code> filtra o disparo pros pixels
+              marcados naquele projeto (na aba <strong>Projetos</strong>).
+            </p>
+            {projects.map(p => (
+              <div key={p.id} className="rounded-md border border-input bg-muted/40 p-3 space-y-2">
+                <div className="text-xs font-semibold text-foreground">{p.name}</div>
+                <div className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground">Braip</div>
+                <WebhookUrl url={`${baseUrl}/api/webhook/braip?project=${p.id}`} />
+                <div className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground">Payt / Luminar</div>
+                <WebhookUrl url={`${baseUrl}/api/webhook/payt?token=${secrets.payt.value ?? "SEU_PAYT_WEBHOOK_SECRET"}&project=${p.id}`} />
+                <div className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground">Skale</div>
+                <WebhookUrl url={`${baseUrl}/api/webhook/skale?token=${secrets.skale.value ?? "SEU_SKALE_WEBHOOK_SECRET"}&project=${p.id}`} />
+              </div>
+            ))}
+          </section>
+        )}
       </CardContent>
     </Card>
   );
